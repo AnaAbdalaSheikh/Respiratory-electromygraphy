@@ -1,0 +1,1192 @@
+'By using this script for your data analysis you automatically accept the terms and conditions below:
+'1) You will acknowledge the author, Ana Paula Abdala Sheikh, in all outputs that arise from direct use of this script, 
+'including but not limited to papers, abstracts, posters, talks, grant applications, teaching and outreach materials)
+'2) If Dr Abdala adapts this script to suit your needs, then a co-authorship on all direct outputs will be required.
+'3) You and the members of your lab must not share the scrip with other researchers. Any researcher seeking to use this script must obtain it directly from the author.
+'You are welcome to share my contact info with interested 3rd parties, my email is ana.abdala@bristol.ac.uk
+'4) This script is a work in progress and I accept no responsibility for analytical errors within.
+
+'The goal is for other researchers to benefit from from this script without cost, but many hours of work were put into writing and refining it, 
+'thus intellectual property must be appropriately acknowledged.
+
+'If you agree to these terms you may proceed, if not please delete the file.
+
+'Kind regards
+'Ana Paula Abdala Sheikh (the author)
+
+Var res%; 'Result view handle
+
+Var txt%; 'Text view handle
+
+var fileok%;
+
+View (app (3));
+WindowVisible (0);
+
+'setting toolbar buttons
+ToolbarSet (1,"DelChan",delchan%);
+ToolbarSet (2,"HideChan",hide%);
+ToolbarSet (3,"QuitScript",abort%);
+ToolbarSet (4,"GetFile",getdata%);
+ToolbarSet (5,"GetText",gettxt%);
+ToolbarSet (6,"PointChan",pntchan%);
+ToolbarSet (7,"SetLevels",getcur%);
+ToolbarSet (8,"Mark-I",mark%);
+Toolbarset (9,"Save Sel Chan",save%);
+ToolbarSet (10,"Dia-EMG",getDia%);
+ToolbarSet (11,"ExtInterc-EMG",getExt%);
+ToolbarSet (12,"IntInterc-EMG",getInt%);
+ToolbarSet (13,"Remove artefact",artefact%);
+ToolbarSet (14,"XYPlot",getXY%);
+
+Toolbar ("This scrip was written by Ana Abdala Sheikh, you must seek pemission before using", 1023);
+
+Halt;
+
+'Open an experiment file***********************************
+Func getdata%();
+res%:=FileOpen ("",0,11);
+Window (0,0,70,100);
+fileok%:=1;
+
+If res%>0 then
+    View(res%);
+    FontSet("Arial Narrow",8, 0);
+    YAxisMode(8192, 1,12, 0);
+    XAxisStyle(1, 0, 0);
+    endif
+    
+Return 1;
+End;
+
+'Open a text file*****************************
+Func gettxt%();
+
+var file%;
+
+file%:=Interact("Choose an option",1023,0,"New file","Existing file");
+
+if file%=1 then;
+    txt%:=FileNew(1,1);
+    Window (70,0,100,100);
+    endif;
+    
+if file%=2 then;    
+    txt%:=FileOpen ("",1,11);
+    Window (70,0,100,100);
+    endif
+
+fileok%:=1;
+Return 1;
+End;
+
+'Hide selected channels*******************************
+Func hide%();
+
+View(Res%); 'Point to the result view
+ChanHide (-3);
+
+fileok%:=1;
+Return 1
+End
+
+'Save selected memory channels**************************
+
+Func save%();
+
+View (res%);
+ChanSave(-3,0);
+Message("Selected channels saved");
+
+fileok%:=1;
+Return 1
+End
+
+'Delete selected channels*******************************
+Func delchan%();
+
+View(Res%); 'Point to the result view
+ChanDelete (-3,1);
+
+fileok%:=1;
+Return 1
+End
+
+'Stop running script*********************************************
+
+Func abort%();
+if fileok%=1 then 
+Endif;
+Halt;
+End
+
+'Point to the integrated data channels to be analysed*****************************************************
+
+Var rawdia%:=2; 'Diaphragm EMG channel
+Var rawext%:=3; 'External intercostal EMG channel
+Var rawint%:=4; 'Internal intercostal EMG channel
+var kdia:=1;
+var kext:=10;
+var kint:=10;
+Var dia%:=803; 'Diaphragm EMG channel
+Var ext%:=801; 'External intercostal EMG channel
+Var int%:=802; 'Internal intercostal EMG channel
+Var timec:=0.05; 'Time constant for channel integration
+
+var chanA%; 'these variables are introduced below, they can be assigned either to a
+var chanB%; 'new channel under the Mark% function or to an exisitng one under this function
+
+
+Func pntchan%();
+View(res%); 'Point to the result view
+var ok%;
+
+DlgCreate("Choose channels for analysis");  'Start new dialog
+DlgAllow(1023);
+DlgChan(1,"Raw Diaphragm",131073);
+DlgChan(2,"Raw External intercostal",131073);
+DlgChan(3,"Raw Internal intercostal",131073);
+DlgReal(4,"Amplification for Diaphragm (K)|1",0.1,10);
+DlgReal(5,"Amplification for External intercostal (K)|10",0.1,10);
+DlgReal(6,"Amplificaiton for Internal intercostal (K)|10",0.1,10);
+DlgChan(7,"Integrated Diaphragm",131073);
+DlgChan(8,"Integrated External intercostal",131073);
+DlgChan(9,"Integrated Internal intercostal",131073);
+DlgReal(10,"Time constant for integration (s)|0.05",0,10);
+DlgChan(11,"Marker channel for start of inspiration",131144); 'this a sum of codes that allow none as an option and shows marker and real mark channels
+DlgChan(12,"Marker channel for end of inspiration",131144);
+
+DlgButton(0,"Cancel");
+DlgButton(1,"OK");
+ok%:= DlgShow(rawdia%, rawext%, rawint%, kdia, kext, kint, dia%, ext%, int%, timec, chanA%, chanB%);
+
+If ok%=0 then
+	Message("Something when wrong, try again!");
+	return 1;
+Endif    
+
+If ok% > 0 then
+    
+    If txt%>0 then View(txt%); 'Point to the text view
+    Print ("\n\nDiaphragm EMG amplification (kVAC) = %.1f", kdia);
+    Print ("\nDiaphragm EMG amplification (kVAC)= %.1f", kext);
+    Print ("\nDiaphragm EMG amplification (kVAC)= %.1f", kint);
+    Print ("\nTime constant for integrated EMG (sec)= %.3f", timec);
+    Endif
+    
+    Do%();
+    
+Endif
+
+return 1
+end
+
+Func Do%();
+
+View(res%); 'Point to the result view
+
+if dia%>0 then
+    ChanProcessClear(dia%,-1); 'delete all channel processes
+    ChanProcessAdd(dia%, 2); 'Add DC Remove
+    ChanProcessAdd(dia%, 0); 'Add Rectify
+    ChanProcessAdd(dia%, 1); 'Add Smooth
+    ChanProcessArg(dia%, 3, 1, timec); 'Set Smooth Time constant (s)
+    ChanSelect(dia%,1); 'select channel
+endif
+
+if ext%>0 then 
+    ChanProcessClear(ext%,-1); 'delete all channel processes
+    ChanProcessAdd(ext%, 2); 'Add DC Remove
+    ChanProcessAdd(ext%, 0); 'Add Rectify
+    ChanProcessAdd(ext%, 1); 'Add Smooth
+    ChanProcessArg(ext%, 3, 1, timec); 'Set Smooth Time constant (s)
+    ChanSelect(ext%,1); 'select channel
+endif
+
+if int%>0 then
+    ChanProcessClear(int%,-1); 'delete all channel processes
+    ChanProcessAdd(int%, 2); 'Add DC Remove
+    ChanProcessAdd(int%, 0); 'Add Rectify
+    ChanProcessAdd(int%, 1); 'Add Smooth
+    ChanProcessArg(int%, 3, 1, timec); 'Set Smooth Time constant (s)
+    ChanSelect(int%,1); 'select channel
+    endif
+
+if chanA%>0 then ChanSelect(chanA%,1);
+    endif
+
+if chanB%>0 then ChanSelect(chanB%,1);
+endif
+
+if rawdia%>0 then
+    ChanUnits$(rawdia%, "uV");
+    ChanScale(rawdia%, 1000000/(kdia*1000));
+endif
+    
+if rawext%>0 then
+    ChanUnits$(rawext%, "uV");
+    ChanScale(rawext%, 1000000/(kext*1000));
+endif
+
+if rawint%>0 then
+    ChanUnits$(rawint%, "uV");
+    ChanScale(rawint%, 1000000/(kint*1000));
+endif
+        
+Return 1;
+End
+
+'To get your cursors and check for appropriate placement*********************************
+Func getcur%();
+
+View(res%); 'Point to the result view
+
+HCursorDelete(-1);
+if dia%>0 then HCursorNew(dia%,50);  'Place Hcursor 1 over diaphragm channel
+endif    
+  
+HCursorLabel(2);
+
+fileok%:=1;
+Return 1;
+End;
+
+'Get markers for start and end of inspiration********************************************************
+
+var Cstep:=0.5; 'hold parameters for active cursor search
+var Cnoise:=0;
+var Cdelay:=0.2;
+var Crepol:=90;
+
+Func mark%();
+
+View(Res%); 'Point to the result view
+
+If dia%=0 then Message("You need integrated diaphragm EMG for this analysis");
+    return 1;
+Endif
+
+If dia%>0 then
+
+    CursorDelete(-1);
+    CursorSet(0);
+    CursorNew();
+    CursorNew();
+    CursorNew();
+    CursorNew();
+    CursorNew();
+    CursorNew();
+    CursorLabel(2);
+    Cursor(0, XLow()*0.7+XHigh()*0.3);
+    CursorVisible(0, 1);  'Show the cursor
+
+    Doit%();
+    
+endif
+
+
+fileok%:=1;
+Return 1;
+End;
+
+Func Doit%();
+
+Var ok%;
+Var question%;
+Var hlevel;
+
+View(Res%); 'Point to the result view
+
+DlgCreate("Set parameters for active cursor search");  'Start new dialog
+DlgAllow(1023);
+DlgReal(1,"Minimum step before searching next breath(sec)|0.5",0,10000);
+DlgReal(2,"Baseline noise rejection level (uV)|0",0,10000);
+DlgReal(3,"Delay after crossing horizontal cursor(sec)|0.2",0,10000);
+DlgReal(4,"% of repolarization|90",0,100);
+
+DlgButton(0,"Cancel");
+DlgButton(1,"OK");
+ok%:= DlgShow(Cstep,Cnoise,Cdelay,Crepol);
+    
+If ok%=0 then
+	Message("Something went wrong; try again!");
+	return 1;
+Endif
+
+If ok%>0 then
+
+    View(res%); 'Point to the result view
+    
+    CursorActive(0,7, dia%, Cstep, "", "", "HCursor(1)", Cnoise, Cdelay);   'Rising threshold start of I
+    CursorActive(1,8, dia%, "Cursor(0)+0.05", "MaxTime()", "", "HCursor(1)", Cnoise, Cdelay);   'Falling threshold end of I
+    CursorActive(2,7, dia%, "Cursor(1)", "MaxTime()", "", "HCursor(1)", Cnoise, Cdelay);  'Rising threshold start of next I
+    CursorActive(3,1, dia%, "Cursor(0)", "Cursor(1)", "", 0, 0, 0);   'maximum level of diaphragm during I
+    CursorActive(4,2, dia%, "Cursor(1)", "Cursor(2)", "");   'Minimum value of diaphragm during E
+    CursorActive(5,15, dia%, "Cursor(3)", "C1+0.5", "C1", 0, Crepol, 0, "Cursor(4)");   'Repolarisation %
+    CursorActive(6,15, dia%, "Cursor(3)", "C0-0.5", "C0", 0, Crepol, 0, "Cursor(4)");   'Repolarisation %
+
+    question%:=Interact("Is vertical cursor detection good?",1023,0,"No, go back","Yes, proceed");
+
+    If question%=1 then Doit%();
+    Endif
+
+    If question%=2 then
+    
+        View(res%); 'Point to the result view
+    
+        hlevel:=Hcursor(1);
+
+        WindowVisible(0);
+
+        MeasureX(102,0,"Cursor(6)","0",0);
+        chanA%:=MeasureToChan(0,"start-I",5,7,dia%,Cstep,"HCursor(1)",Cnoise,0,"",Cdelay);
+        Process(0.0, View(-1).MaxTime(), 0, 1, chanA%);
+        DrawMode(chanA%,2,1);
+        ChanShow(chanA%); 'marks start of inspiration
+    
+        MeasureX(102,0,"Cursor(5)","0",0);
+        chanB%:=MeasureToChan(0,"end-I",5,7,dia%,Cstep,"HCursor(1)",Cnoise,0,"",Cdelay);
+        Process(0.0, View(-1).MaxTime(), 0, 1, chanB%);
+        DrawMode(chanB%,2,1);
+        ChanShow(chanB%); 'marks end of inspiration
+    
+        WindowVisible(1);
+    
+        If ok% > 0 and txt%>0 then View(txt%); 'Point to the text view
+        Print ("\n\nLevel of horizontal cursor on integrated diaphragm (uV) = %.3f", hlevel);
+        Print ("\nMinimum step before searching next breath (sec) = %.3f", Cstep);
+        Print ("\nBaseline noise rejection level (uV) = %.3f", Cnoise);
+        Print ("\nDelay after crossing horizontal cursor(sec)= %.3f", Cdelay);
+        Print ("\nStart and end of burst measured at %d percent repolarization", Crepol);
+        Endif
+    
+    Endif
+    
+Endif
+
+Return 1;
+End
+
+
+
+
+'Analysis for diaphragm EMG *****************************************************
+
+var chanE%; 'duration of inspiration (TI)
+var chanF%; 'duration of expiration (TE)
+var chanG%; 'diaphragm peak amplitude
+var chanH%; 'respiratory rate
+var chanI%; 'resp cycle length (Ttot)
+var chanM%; 'area under the curve (AUC) and normalized AUC during inspiration
+var chanMM%;    'area under the curve (AUC) and normalized AUC during expiration
+var chE%, chF%, chG%, chAmp%, chAMPG%, chM%, chMM%, chTtot%; 'virtual channels for Dia TI, TE, AUC-I, AUC-E, Ttot etc
+var chME%; 'normalized virtual channel
+var chMME%; 'normalized virtual channel
+var chDuty%;    'diaphragm duty cycle = TI/Ttot*100
+var chanAmp%; 'baseline amplitude for diaphragm during expiration
+
+
+Func getDia%();
+
+var startpos;
+var endpos;
+var EMGmin;
+var EMGmax;
+var minP;
+var maxP;
+var endofile;
+
+View(res%); 'Point to the result view
+
+if dia%=0 then Message("You need diaphragm EMG for this analysis");
+    return 1;
+endif
+
+If dia%>0 then
+
+    CursorDelete(-1);
+    CursorSet(0);
+    CursorNew();
+    CursorNew();
+    CursorNew();
+    CursorNew();
+    CursorNew();
+    CursorNew();
+    CursorNew();
+    CursorLabel(2);
+    Cursor(0, XLow()*0.7+XHigh()*0.3);
+    CursorVisible(0, 1);  'Show the cursor
+
+    CursorActive(0,14, chanA%, 0.01, "", "", 1); 'start-I
+    CursorActive(1,14, chanB%, "Cursor(0)+0.01", "MaxTime()", "", 1);   'end-I
+    CursorActive(2,14, chanA%, "Cursor(1)+0.01", "MaxTime()", "", 1);   'start-next I
+    CursorActive(3,1, dia%, "Cursor(0)", "Cursor(1)", "", 0, 0, 0);   'maximum level of diaphragm during I
+    CursorActive(4,2, dia%, "Cursor(1)", "Cursor(2)", "");   'Minimum value of diaphragm during E
+
+    endofile:=Maxtime();
+
+    Cursor(5, endofile-35); 'place cursors for measument of silent amplitude at the end of the file
+    Cursor(6, endofile-5);
+
+    XRange(Cursor(5)-(XHigh()-XLow())/2);
+
+    Interact("Place reference cursors (5-6) on good silent baseline data for diaphragm", 1023);
+
+    View(res%); 'Point to the result view
+
+    WindowVisible(0);
+
+    startpos:=Cursor(5);
+    endpos:=Cursor(6);
+
+    MinMax(dia%, startpos, endpos, EMGmin, EMGmax, minP, maxP);
+
+    Cursor(7,minP);  'Minimum diaphragm value between cursors 5 and 6
+
+    MeasureX(102,chanA%,"Cursor(0)","0",0);  'calculating duration of inspiration (TI)
+    MeasureY(103,dia%,"Cursor(1)","Cursor(0)",0);
+    chanE%:=MeasureToChan(0,"TI",7,14, chanA%, 0.01, 1, 0, 1);
+    Process(0.0, View(-1).MaxTime(), 1, 0, chanE%);
+    DrawMode(chanE%,3,1,0,0);
+    ChanShow(ChanE%);
+    chE% := VirtualChan(0, ""); 'Create new virtual channel
+    VirtualChan(chE%, Print$("RM(%d,0,0)", chanE%), 0, 0.001, 0);  'Edit virtual channel
+    DrawMode(chE%,3,1,0,0);
+
+    Yield(0,1023);
+
+    MeasureX(102,chanA%,"Cursor(0)","0",0);  'calculating duration of expiration (TE)
+    MeasureY(103,dia%,"Cursor(2)","Cursor(1)",0);
+    chanF%:=MeasureToChan(0,"TE",7,14, chanA%, 0.01, 1, 0, 1);
+    Process(0.0, View(-1).MaxTime(), 1, 0, chanF%);
+    DrawMode(chanF%,3,1,0,0);
+    ChanShow(ChanF%);
+    chF% := VirtualChan(0, ""); 'Create new virtual channel
+    VirtualChan(chF%, Print$("RM(%d,0,0)", chanF%), 0, 0.001, 0);  'Edit virtual channel
+    DrawMode(chF%,3,1,0,0);
+
+    ChanTitle$(chE%, "TI");
+    ChanTitle$(chF%, "TE");
+    ChanUnits$(chE%, "s");
+    ChanUnits$(chF%, "s");
+
+    Yield(0,1023);
+
+    MeasureX(102,chanA%,"Cursor(0)","0",0);  'calculating diaphragm peak amplitude
+    MeasureY(109,dia%,"Cursor(3)","Cursor(7)",0);
+    chanG%:=MeasureToChan(0,"Dia-Peak",7,14, chanA%, 0.01, 1, 0, 1);
+    Process(0.0, View(-1).MaxTime(), 1, 0, chanG%);
+    DrawMode(chanG%,3,1,0,0);
+    ChanShow(ChanG%);
+    chG% := VirtualChan(0, ""); 'Create new virtual channel
+    VirtualChan(chG%, Print$("RM(%d,0,0)", chanG%), 0, 0.001, 0);  'Edit virtual channel
+    DrawMode(chG%,3,1,0,0);
+
+    Yield(0,1023);
+
+    MeasureX(102,chanA%,"Cursor(0)","0",0);  'calculating diaphragm nadir (minimum during E)
+    MeasureY(109,dia%,"Cursor(4)","Cursor(7)",0);
+    chanAmp%:=MeasureToChan(0,"Dia-Nadir",7,14, chanA%, 0.01, 1, 0, 1);
+    Process(0.0, View(-1).MaxTime(), 1, 0, chanAmp%);
+    DrawMode(chanAmp%,3,1,0,0);
+    ChanShow(ChanAmp%);
+    chAmp% := VirtualChan(0, ""); 'Create new virtual channel
+    VirtualChan(chAmp%, Print$("RM(%d,0,0)", chanAmp%), 0, 0.001, 0);  'Edit virtual channel
+    DrawMode(chAmp%,3,1,0,0);
+    chAmpG% := VirtualChan(0, ""); 'Create new virtual channel for diaphragm duty cycle
+    ChanShow(chAmpG%); 'Make it visible
+    VirtualChan(chAmpG%, Print$("ch(%d)/ch(%d)*100", chAmp%, chG%), 0, 0.001, 0);  'Edit virtual channel ratio = nadir/peak*100
+    DrawMode(chAmpG%,3,1,0,0);
+    
+
+    MeasureX(102,chanA%,"Cursor(0)","0",0);  'calculating respiratory rate
+    chanH%:=MeasureToChan(0,"RespRate",7,14, chanA%, 0.01, 1, 0, 1);
+    Process(0.0, View(-1).MaxTime(), 1, 0, chanH%);
+    DrawMode(chanH%,12,0,0,2);
+    ChanShow(ChanH%);
+    
+    Yield(0,1023);
+    
+    MeasureX(102,chanA%,"Cursor(0)","0",0);  'calculating resp cycle length (Ttot)
+    MeasureY(103,dia%,"Cursor(2)","Cursor(0)",0);
+    chanI%:=MeasureToChan(0,"Ttot",7,14, chanA%, 0.01, 1, 0, 1);
+    Process(0.0, View(-1).MaxTime(), 1, 0, chanI%);
+    DrawMode(chanI%,3,1,0,0);
+    ChanShow(ChanI%);
+    chTtot% := VirtualChan(0, ""); 'Create new virtual channel to hold Ttot values
+    VirtualChan(chTtot%, Print$("RM(%d,0,0)", chanI%), 0, 0.001, 0);  'Edit virtual channel
+    chDuty% := VirtualChan(0, ""); 'Create new virtual channel for diaphragm duty cycle
+    ChanShow(chDuty%); 'Make it visible
+    VirtualChan(chDuty%, Print$("ch(%d)/ch(%d)*100", chE%, chTtot%), 0, 0.001, 0);  'Edit virtual channel duty cycle = TI/Ttot*100
+    DrawMode(chME%,3,1,0,0);
+    
+    Yield(0,1023);
+
+    MeasureX(102,chanA%,"Cursor(0)","0",0);         'Diaphragm area under the curve (AUC) and normalized AUC during inspiration
+    MeasureY(1,dia%,"Cursor(0)","Cursor(1)",0);
+    chanM%:=MeasureToChan(0,"Dia-AUC-I",7,14, chanA%, 0.01, 1, 0, 1);
+    Process(0.0, View(-1).MaxTime(), 1, 0, chanM%);
+    DrawMode(chanM%,3,1,0,0);
+    ChanShow(chanM%);
+    chM% := VirtualChan(0, ""); 'Create new virtual channel
+    VirtualChan(chM%, Print$("RM(%d,0,0)", chanM%), 0, 0.001, 0);  'Edit virtual channel
+    chME% := VirtualChan(0, ""); 'Create new virtual channel for normalized Dia AUC-I/TI
+    ChanShow(chME%); 'Make it visible
+    VirtualChan(chME%, Print$("ch(%d)/ch(%d)", chM%, chE%), 0, 0.001, 0);  'Edit virtual channel
+    DrawMode(chME%,3,1,0,0);
+    
+    Yield(0,1023);
+    
+    MeasureX(102,chanA%,"Cursor(0)","0",0);         'Diaphragm area under the curve (AUC) and normalized AUC during expiration
+    MeasureY(1,dia%,"Cursor(1)","Cursor(2)",0);
+    chanMM%:=MeasureToChan(0,"Dia-AUC-E",7,14, chanA%, 0.01, 1, 0, 1);
+    Process(0.0, View(-1).MaxTime(), 1, 0, chanMM%);
+    DrawMode(chanMM%,3,1,0,0);
+    ChanShow(chanMM%);
+    chMM% := VirtualChan(0, ""); 'Create new virtual channel
+    VirtualChan(chMM%, Print$("RM(%d,0,0)", chanMM%), 0, 0.001, 0);  'Edit virtual channel
+    chMME% := VirtualChan(0, ""); 'Create new virtual channel for normalized Dia AUC-E/TE
+    ChanShow(chMME%); 'Make it visible
+    VirtualChan(chMME%, Print$("ch(%d)/ch(%d)", chMM%, chF%), 0, 0.001, 0);  'Edit virtual channel
+    DrawMode(chMME%,3,1,0,0);
+    
+    Yield(0,1023);
+    
+    ChanTitle$(chM%, "Dia-AUC-I");
+    ChanTitle$(chME%, "Dia-AUC-I:TI");
+    ChanTitle$(chMM%, "Dia-AUC-E");
+    ChanTitle$(chMME%, "Dia-AUC-E:TE");
+    ChanTitle$(chTtot%, "Ttot");
+    ChanTitle$(chDuty%, "Dia-Duty cycle");
+    ChanTitle$(chG%, "Dia-peak");
+    ChanTitle$(chAmp%, "Dia-nadir");
+    ChanTitle$(chAmpG%, "Dia-nadir:peak*100");
+    
+    ChanUnits$(chM%, "mV*s");
+    ChanUnits$(chME%, "AU");
+    ChanUnits$(chMM%, "mV*s");
+    ChanUnits$(chMME%, "AU");
+    ChanUnits$(chTtot%, "s");
+    ChanUnits$(chDuty%, "%");
+    ChanUnits$(chG%, "uV");
+    ChanUnits$(chAmp%, "uV");
+    ChanUnits$(chAmpG%, "%");
+    
+    
+    ChanColour(chanE%,1,8);   'set line colour
+    ChanColour(chanE%,0,21);   'Set background colour
+    ChanColour(chanF%,1,8);   'set line colour
+    ChanColour(chanF%,0,21);   'Set background colour
+    ChanColour(chanG%,1,8);   'set line colour
+    ChanColour(chanG%,0,21);   'Set background colour
+    ChanColour(chanH%,1,8);   'set line colour
+    ChanColour(chanH%,0,21);   'Set background colour
+    ChanColour(chanI%,1,8);   'set line colour
+    ChanColour(chanI%,0,21);   'Set background colour
+    ChanColour(chanM%,1,8);   'set line colour
+    ChanColour(chanM%,0,21);   'Set background colour
+    ChanColour(chanMM%,1,8);   'set line colour
+    ChanColour(chanMM%,0,21);   'Set background colour
+    ChanColour(chME%,1,8);   'set line colour
+    ChanColour(chME%,0,21);   'Set background colour
+    ChanColour(chMME%,1,8);   'set line colour
+    ChanColour(chMME%,0,21);   'Set background colour
+    ChanColour(chDuty%,1,8);   'set line colour
+    ChanColour(chDuty%,0,21);   'Set background colour
+    ChanColour(chanAmp%,1,8);   'set line colour
+    ChanColour(chanAmp%,0,21);   'Set background colour
+    ChanColour(chAmpG%,1,8);
+    ChanColour(chAmpG%,0,21);
+    
+    Optimise(-1);
+    
+    WindowVisible(1);
+    
+    If txt%>0 then View(txt%); 'Point to the text view
+        Print ("\n\nSilent diaphragm baseline measured between %.2f and %.2f seconds", startpos, endpos);
+        Print ("\nSilent diaphragm baseline is %.3f uV", EMGmin);
+        
+    Endif
+    
+Endif;
+
+fileok%:=1;
+Return 1;
+End;
+
+
+'Dialog box for % repolarization on intercostal nerves
+
+var IntercostRepol:=97;
+var okdialg%;
+
+Func Dialog%();
+
+DlgCreate("Set parameters for bin averages");  'Start new dialog
+DlgAllow(1023);
+DlgReal(1,"Repolarization for preI detection (%)|97",0,100);
+
+DlgButton(0,"Cancel");
+DlgButton(1,"OK");
+okdialg%:= DlgShow(IntercostRepol);
+
+If okdialg%=0 then
+	Message("Something went wrong; try again!");
+	return 1;
+endif;
+
+Return 1;
+End;
+
+
+'Analysis for external intercostal EMG ***********************************************************************************************
+
+var chanL%;     'AUC-I
+var chanJ%;     'AUC-E
+var chanPI%;    'preI
+var chanPeak%;  'Peak 
+var chanTROU%;  'Trough
+var chL%, chJ%, chPI%, chPeak%, chTROU%, chTROUPeak%; 'virtual channels holding external AUC-I, AUC-E, and preI duration etc
+var chLE%, chJF%,chPIF%; ' normalized virtual channels
+
+
+Func getExt%();
+
+View(res%); 'Point to the result view
+
+if dia%=0 or ext%=0 then Message("You need Diaphragm and External intercostal EMG for this analysis");
+    return 1
+endif
+
+Dialog%();
+
+if dia%>0 and ext%>0 and okdialg%>0 then
+    
+    View(res%); 'Point to the result view
+    
+    var startpos;
+    var endpos;
+    var EMGmin;
+    var EMGmax;
+    var minP;
+    var maxP;
+    var endofile;
+    
+    
+    CursorDelete(-1);
+    CursorSet(0);
+    CursorNew();
+    CursorNew();
+    CursorNew();
+    CursorNew();
+    CursorNew();
+    CursorNew();
+    CursorNew();
+    CursorNew();
+    CursorLabel(2);
+    Cursor(0, XLow()*0.7+XHigh()*0.3);
+    CursorVisible(0, 1);  'Show the cursor
+    
+    CursorActive(0,14, chanA%, 0.01, "", "", 1); 'start-I
+    CursorActive(1,14, chanB%, "Cursor(0)+0.01", "MaxTime()", "", 1);   'end-I
+    CursorActive(2,14, chanB%, "Cursor(0)-0.01", "0", "", 1);   'end-I of previous breath
+    CursorActive(3,1, ext%, "Cursor(0)", "Cursor(1)", "", 0, 0, 0);   'maximum level of external intercost during I
+    CursorActive(4,2, ext%, "Cursor(0)", "Cursor(2)", "");   'Minimum value of external intercost during E
+    CursorActive(5,15, ext%, "Cursor(3)", "Cursor(4)", "C0", 0, IntercostRepol, 0, "Cursor(4)");   'Repolarisation %
+    
+    
+    endofile:=Maxtime();
+    
+    Cursor(6, endofile-35); 'place cursors for measument of silent amplitude at the end of the file
+    Cursor(7, endofile-5);
+    
+    XRange(Cursor(6)-(XHigh()-XLow())/2);
+    
+    Interact("Place reference cursors (6-7) on good silent baseline data for external intercostal", 1023);
+    
+    View(res%); 'Point to the result view
+    
+    WindowVisible(0);
+    
+    startpos:=Cursor(6);
+    endpos:=Cursor(7);
+    
+    MinMax(ext%, startpos, endpos, EMGmin, EMGmax, minP, maxP);
+    
+    Cursor(8,minP);  'Minimum diaphragm value between cursors 6 and 7
+    
+    MeasureX(102,chanA%,"Cursor(0)","0",0);   'external intercostal area under the curve during inspiration
+    MeasureY(1,ext%,"Cursor(0)","Cursor(1)",0);
+    chanL%:=MeasureToChan(0,"EXt-AUC-I",7,14, chanA%, 0.01, 1, 0, 1);
+    Process(0.0, View(-1).MaxTime(), 1, 0, chanL%);
+    DrawMode(chanL%,3,1,0,0);
+    ChanShow(chanL%);
+    chL% := VirtualChan(0, ""); 'Create new virtual channel
+    VirtualChan(chL%, Print$("RM(%d,0,0)", chanL%), 0, 0.001, 0);  'Edit virtual channel
+    chLE% := VirtualChan(0, ""); 'Create new virtual channel for normalized Ext-AUC-I:TI
+    ChanShow(chLE%); 'Make it visible
+    VirtualChan(chLE%, Print$("ch(%d)/ch(%d)", chL%, chE%), 0, 0.001, 0);  'Edit virtual channel
+    
+    ChanTitle$(chL%, "Ext-AUC-I");
+    ChanTitle$(chLE%, "Ext-AUC-I:TI");
+    ChanUnits$(chL%, "µV*s");
+    ChanUnits$(chLE%, "AU");
+    
+    Yield(0,1023);
+    
+    MeasureX(102,chanA%,"Cursor(0)","0",0);   'External intercostal area under the curve during expiration
+    MeasureY(1,ext%,"Cursor(2)","Cursor(0)",0);
+    chanJ%:=MeasureToChan(0,"Ext-AUC-E",7,14, chanA%, 0.01, 1, 0, 1);
+    Process(0.0, View(-1).MaxTime(), 1, 0, chanJ%);
+    DrawMode(chanJ%,3,1,0,0);
+    ChanShow(ChanJ%);
+    chJ% := VirtualChan(0, ""); 'Create new virtual channel
+    VirtualChan(chJ%, Print$("RM(%d,0,0)", chanJ%), 0, 0.001, 0);  'Edit virtual channel
+    chJF% := VirtualChan(0, ""); 'Create new virtual channel for normalized Ext-AUC-E:TE
+    ChanShow(chJF%); 'Make it visible
+    VirtualChan(chJF%, Print$("ch(%d)/ch(%d)", chJ%, chF%), 0, 0.001, 0);  'Edit virtual channel
+    
+    ChanTitle$(chJ%, "Ext-AUC-E");
+    ChanTitle$(chJF%, "Ext-AUC-E:TE");
+    ChanUnits$(chJ%, "µV*s");
+    ChanUnits$(chJF%, "AU");
+    
+    Yield(0,1023);
+    
+    MeasureX(102,chanA%,"Cursor(0)","0",0);  'calculating duration of external intercostal pre-I
+    MeasureY(103,ext%,"Cursor(5)","Cursor(0)",0);
+    chanPI%:=MeasureToChan(0,"Ext-PreI",7,14, chanA%, 0.01, 1, 0, 1);
+    Process(0.0, View(-1).MaxTime(), 1, 0, chanPI%);
+    DrawMode(chanPI%,3,1,0,0);
+    ChanShow(ChanPI%);
+    chPI% := VirtualChan(0, ""); 'Create new virtual channel
+    VirtualChan(chPI%, Print$("RM(%d,0,0)", chanPI%), 0, 0.001, 0);  'Edit virtual channel
+    chPIF% := VirtualChan(0, ""); 'Create new virtual channel for pre-I duty cycle
+    ChanShow(chPIF%); 'Make it visible
+    VirtualChan(chPIF%, Print$("ch(%d)/ch(%d)*100", chPI%, chF%), 0, 0.001, 0);  'Edit virtual channel
+    
+    ChanTitle$(chPI%, "Ext-Pre-I");
+    ChanTitle$(chPIF%, "Ext-Pre-I DutyC");
+    ChanUnits$(chPI%, "s");
+    ChanUnits$(chPIF%, "%");
+    
+    Yield(0,1023);
+    
+    
+    MeasureX(102,chanA%,"Cursor(0)","0",0);  'calculating external intercostal peak amplitude relative to the baseline determined above (minP=C8)
+    MeasureY(109,ext%,"Cursor(3)","Cursor(8)",0);
+    chanPeak%:=MeasureToChan(0,"Ext-Peak",7,14, chanA%, 0.01, 1, 0, 1);
+    Process(0.0, View(-1).MaxTime(), 1, 0, chanPeak%);
+    DrawMode(chanPeak%,3,1,0,0);
+    ChanShow(ChanPeak%);
+    chPeak% := VirtualChan(0, ""); 'Create new virtual channel
+    VirtualChan(chPeak%, Print$("RM(%d,0,0)", chanPeak%), 0, 0.001, 0);  'Edit virtual channel
+    DrawMode(chPeak%,3,1,0,0);
+    
+    ChanTitle$(chPeak%, "Ext-peak");
+    ChanUnits$(chPeak%, "uV");
+    
+    
+    Yield(0,1023);
+    
+    MeasureX(102,chanA%,"Cursor(0)","0",0);  'calculating extternal intercostal trough relative to the baseline determined above (minP=C8)
+    MeasureY(109,ext%,"Cursor(4)","Cursor(8)",0);
+    chanTROU%:=MeasureToChan(0,"Ext-Nadir",7,14, chanA%, 0.01, 1, 0, 1);
+    Process(0.0, View(-1).MaxTime(), 1, 0, chanTROU%);
+    DrawMode(chanTROU%,3,1,0,0);
+    ChanShow(chanTROU%);
+    chTROU% := VirtualChan(0, ""); 'Create new virtual channel
+    VirtualChan(chTROU%, Print$("RM(%d,0,0)", chanTROU%), 0, 0.001, 0);  'Edit virtual channel
+    DrawMode(chTROU%,3,1,0,0);
+    chTROUPeak% := VirtualChan(0, ""); 'Create new virtual channel for ratio nadir:peak*100
+    ChanShow(chTROUPeak%); 'Make it visible
+    VirtualChan(chTROUPeak%, Print$("ch(%d)/ch(%d)*100", chTROU%, chPeak%), 0, 0.001, 0);  'Edit virtual channel
+    
+    ChanTitle$(chTROU%, "Ext-nadir");
+    ChanUnits$(chTROU%, "uV");
+    ChanTitle$(chTROUPeak%, "Ext-nadir:peak*100");
+    ChanUnits$(chTROUPeak%, "%");
+    
+    Yield(0,1023);
+    
+    Optimise(-2);
+    
+    ChanColour(chanL%,1,22);   'set line colour
+    ChanColour(chanL%,0,21);   'Set background colour
+    ChanColour(chanJ%,1,22);   'set line colour
+    ChanColour(chanJ%,0,21);   'Set background colour
+    ChanColour(chanPI%,1,22);   'set line colour
+    ChanColour(chanPI%,0,21);   'Set background colour
+    ChanColour(chanTROU%,1,22);   'set line colour
+    ChanColour(chanTROU%,0,21);   'Set background colour
+    ChanColour(chanPeak%,1,22);   'set line colour
+    ChanColour(chanPeak%,0,21);   'Set background colour
+    ChanColour(chLE%,1,22);   'set line colour
+    ChanColour(chLE%,0,21);   'Set background colour
+    ChanColour(chPIF%,1,22);   'set line colour
+    ChanColour(chPIF%,0,21);   'Set background colour
+    ChanColour(chJF%,1,22);   'set line colour
+    ChanColour(chJF%,0,21);   'Set background colour
+    ChanColour(chTROUPeak%,1,22);   'set line colour
+    ChanColour(chTROUPeak%,0,21);   'Set background colour
+    
+    WindowVisible(1);
+    
+    If txt%>0 then View(txt%); 'Point to the text view
+        Print ("\n\nSilent external interconstal baseline measured between %.2f and %.2f seconds", startpos, endpos);
+        Print ("\nSilent external intercostal baseline is %.3f uV", EMGmin);
+        Print ("\nStart of burst measured at %d percent repolarization", IntercostRepol);
+    Endif
+    
+Endif
+
+
+fileok%:=1;
+Return 1;
+End;
+
+
+'Analysis for internal intercostal EMG ***********************************************************************************************
+
+var chanLL%;
+var chanJJ%;
+var chanPPI%;
+var chanPPeak%;
+var chanTTROU%;
+var chLL%, chJJ%, chPPI%, chPPeak%, chTTROU%, chTTROUPPeak%; 'virtual channels holding cVN area I, cVN area E, and post-I duration etc
+var chLLE%, chJJF%,chPPIF%; ' normalized virtual channels
+
+
+Func getInt%();
+
+View(res%); 'Point to the result view
+
+if dia%=0 or int%=0 then Message("You need Diaphragm and Internal intercostal EMG for this analysis");
+    return 1
+endif
+
+Dialog%();
+
+View(res%); 'Point to the result view
+
+if dia%>0 and ext%>0 and okdialg%>0 then
+    
+    var startpos;
+    var endpos;
+    var EMGmin;
+    var EMGmax;
+    var minP;
+    var maxP;
+    var endofile;
+    
+    CursorDelete(-1);
+    CursorSet(0);
+    CursorNew();
+    CursorNew();
+    CursorNew();
+    CursorNew();
+    CursorNew();
+    CursorNew();
+    CursorNew();
+    CursorNew();
+    CursorLabel(2);
+    Cursor(0, XLow()*0.7+XHigh()*0.3);
+    CursorVisible(0, 1);  'Show the cursor
+    
+    CursorActive(0,14, chanA%, 0.01, "", "", 1); 'start-I
+    CursorActive(1,14, chanB%, "Cursor(0)+0.01", "MaxTime()", "", 1);   'end-I
+    CursorActive(2,14, chanB%, "Cursor(0)-0.01", "0", "", 1);   'end-I of previous breath
+    CursorActive(3,1, int%, "Cursor(0)", "Cursor(1)", "", 0, 0, 0);   'maximum level of internal intercost during I
+    CursorActive(4,2, int%, "Cursor(0)", "Cursor(2)", "");   'Minimum value of internal intercost during E
+    CursorActive(5,15, int%, "Cursor(3)", "Cursor(4)", "C0", 0, IntercostRepol, 0, "Cursor(4)");   'Repolarisation %
+    
+    
+    endofile:=Maxtime();
+    
+    Cursor(6, endofile-35); 'place cursors for measument of silent amplitude at the end of the file
+    Cursor(7, endofile-5);
+    
+    XRange(Cursor(6)-(XHigh()-XLow())/2);
+    
+    Interact("Place reference cursors (6-7) on good silent baseline data for internal intercostal", 1023);
+    
+    View(res%); 'Point to the result view
+    
+    WindowVisible(0);
+    
+    startpos:=Cursor(6);
+    endpos:=Cursor(7);
+    
+    MinMax(int%, startpos, endpos, EMGmin, EMGmax, minP, maxP);
+    
+    Cursor(8,minP);  'Minimum diaphragm value between cursors 6 and 7
+    
+    MeasureX(102,chanA%,"Cursor(0)","0",0);   'internal intercostal area under the curve during inspiration
+    MeasureY(1,int%,"Cursor(0)","Cursor(1)",0);
+    chanLL%:=MeasureToChan(0,"Int-AUC-I",7,14, chanA%, 0.01, 1, 0, 1);
+    Process(0.0, View(-1).MaxTime(), 1, 0, chanLL%);
+    DrawMode(chanLL%,3,1,0,0);
+    ChanShow(chanLL%);
+    chLL% := VirtualChan(0, ""); 'Create new virtual channel
+    VirtualChan(chLL%, Print$("RM(%d,0,0)", chanLL%), 0, 0.001, 0);  'Edit virtual channel
+    chLLE% := VirtualChan(0, ""); 'Create new virtual channel for normalized Int-AUC-I:TI
+    ChanShow(chLLE%); 'Make it visible
+    VirtualChan(chLLE%, Print$("ch(%d)/ch(%d)", chLL%, chE%), 0, 0.001, 0);  'Edit virtual channel
+    
+    ChanTitle$(chLL%, "Int-AUC-I");
+    ChanTitle$(chLLE%, "Int-AUC-I:TI");
+    ChanUnits$(chLL%, "µV*s");
+    ChanUnits$(chLLE%, "AU");
+    
+    Yield(0,1023);
+    
+    MeasureX(102,chanA%,"Cursor(0)","0",0);   'Internal intercost area under the curve during expiration
+    MeasureY(1,int%,"Cursor(2)","Cursor(0)",0);
+    chanJJ%:=MeasureToChan(0,"Int-AUC-E",7,14, chanA%, 0.01, 1, 0, 1);
+    Process(0.0, View(-1).MaxTime(), 1, 0, chanJJ%);
+    DrawMode(chanJJ%,3,1,0,0);
+    ChanShow(ChanJJ%);
+    chJJ% := VirtualChan(0, ""); 'Create new virtual channel
+    VirtualChan(chJJ%, Print$("RM(%d,0,0)", chanJJ%), 0, 0.001, 0);  'Edit virtual channel
+    chJJF% := VirtualChan(0, ""); 'Create new virtual channel for normalized Int-AUC-E:TE
+    ChanShow(chJJF%); 'Make it visible
+    VirtualChan(chJJF%, Print$("ch(%d)/ch(%d)", chJJ%, chF%), 0, 0.001, 0);  'Edit virtual channel
+    
+    ChanTitle$(chJJ%, "Int-AUC-E");
+    ChanTitle$(chJJF%, "Int-AUC-E:TE");
+    ChanUnits$(chJJ%, "µV*s");
+    ChanUnits$(chJJF%, "AU");
+    
+    Yield(0,1023);
+    
+    MeasureX(102,chanA%,"Cursor(0)","0",0);  'calculating duration of internal intercostal pre-I
+    MeasureY(103,int%,"Cursor(5)","Cursor(0)",0);
+    chanPPI%:=MeasureToChan(0,"Int-PreI",7,14, chanA%, 0.01, 1, 0, 1);
+    Process(0.0, View(-1).MaxTime(), 1, 0, chanPPI%);
+    DrawMode(chanPPI%,3,1,0,0);
+    ChanShow(ChanPPI%);
+    chPPI% := VirtualChan(0, ""); 'Create new virtual channel
+    VirtualChan(chPPI%, Print$("RM(%d,0,0)", chanPPI%), 0, 0.001, 0);  'Edit virtual channel
+    chPPIF% := VirtualChan(0, ""); 'Create new virtual channel for pre-I duty cycle
+    ChanShow(chPPIF%); 'Make it visible
+    VirtualChan(chPPIF%, Print$("ch(%d)/ch(%d)*100", chPPI%, chF%), 0, 0.001, 0);  'Edit virtual channel
+    
+    ChanTitle$(chPPI%, "Int-Pre-I");
+    ChanTitle$(chPPIF%, "Int-Pre-I DutyC");
+    ChanUnits$(chPPI%, "s");
+    ChanUnits$(chPPIF%, "%");
+    
+    Yield(0,1023);
+    
+    MeasureX(102,chanA%,"Cursor(0)","0",0);  'calculating internal intercostal peak amplitude relative to the baseline determined above (minP=C8)
+    MeasureY(109,int%,"Cursor(3)","Cursor(8)",0);
+    chanPPeak%:=MeasureToChan(0,"Int-Peak",7,14, chanA%, 0.01, 1, 0, 1);
+    Process(0.0, View(-1).MaxTime(), 1, 0, chanPPeak%);
+    DrawMode(chanPPeak%,3,1,0,0);
+    ChanShow(ChanPPeak%);
+    chPPeak% := VirtualChan(0, ""); 'Create new virtual channel
+    VirtualChan(chPPeak%, Print$("RM(%d,0,0)", chanPPeak%), 0, 0.001, 0);  'Edit virtual channel
+    DrawMode(chPPeak%,3,1,0,0);
+    
+    ChanTitle$(chPPeak%, "Int-peak");
+    ChanUnits$(chPPeak%, "uV");
+    
+    Yield(0,1023);
+    
+    MeasureX(102,chanA%,"Cursor(0)","0",0);  'calculating intternal intercostal trough relative to the baseline determined above (minP=C8)
+    MeasureY(109,int%,"Cursor(4)","Cursor(8)",0);
+    chanTTROU%:=MeasureToChan(0,"Int-Nadir",7,14, chanA%, 0.01, 1, 0, 1);
+    Process(0.0, View(-1).MaxTime(), 1, 0, chanTTROU%);
+    DrawMode(chanTTROU%,3,1,0,0);
+    ChanShow(chanTTROU%);
+    chTTROU% := VirtualChan(0, ""); 'Create new virtual channel
+    VirtualChan(chTTROU%, Print$("RM(%d,0,0)", chanTTROU%), 0, 0.001, 0);  'Edit virtual channel
+    DrawMode(chTTROU%,3,1,0,0);
+    chTTROUPPeak% := VirtualChan(0, ""); 'Create new virtual channel for normalized Ext-AUC-I:TI
+    ChanShow(chTTROUPPeak%); 'Make it visible
+    VirtualChan(chTTROUPPeak%, Print$("ch(%d)/ch(%d)*100", chTTROU%, chPPeak%), 0, 0.001, 0);  'Edit virtual channel
+    
+    ChanTitle$(chTTROU%, "Int-nadir");
+    ChanUnits$(chTTROU%, "uV");
+    ChanTitle$(chTTROUPPeak%, "Int-nadir:peak*100");
+    ChanUnits$(chTTROUPPeak%, "%");
+    
+    Yield(0,1023);
+    
+    Optimise(-2);
+    
+    ChanColour(chanLL%,1,13);   'set line colour
+    ChanColour(chanLL%,0,21);   'Set background colour
+    ChanColour(chanJJ%,1,13);   'set line colour
+    ChanColour(chanJJ%,0,21);   'Set background colour
+    ChanColour(chanPPI%,1,13);   'set line colour
+    ChanColour(chanPPI%,0,21);   'Set background colour
+    ChanColour(chanTTROU%,1,13);   'set line colour
+    ChanColour(chanTTROU%,0,21);   'Set background colour
+    ChanColour(chanPPeak%,1,13);   'set line colour
+    ChanColour(chanPPeak%,0,21);   'Set background colour
+    ChanColour(chLLE%,1,13);   'set line colour
+    ChanColour(chLLE%,0,21);   'Set background colour
+    ChanColour(chPPIF%,1,13);   'set line colour
+    ChanColour(chPPIF%,0,21);   'Set background colour
+    ChanColour(chJJF%,1,13);   'set line colour
+    ChanColour(chJJF%,0,21);   'Set background colour
+    ChanColour(chTTROUPPeak%,1,13);   'set line colour
+    ChanColour(chTTROUPPeak%,0,21);   'Set background colour
+    
+    WindowVisible(1);
+    
+    If txt%>0 then View(txt%); 'Point to the text view
+        Print ("\n\nSilent internal intercostal baseline measured between %.2f and %.2f seconds", startpos, endpos);
+        Print ("\nSilent internal intercostal baseline is %.3f uV", EMGmin);
+        Print ("\nStart of burst measured at %d percent repolarization", IntercostRepol);
+    Endif
+    
+Endif
+
+
+fileok%:=1;
+Return 1;
+End;
+
+'Remove artefact from memory channels
+
+Func artefact%();
+
+var query%;
+var delitem%;
+var startT;
+var endT;
+
+View(res%); 'Point to the result view
+
+CursorDelete(-1);
+CursorSet(0);
+CursorNew();
+CursorVisible(0, 1);  'Show the cursor
+CursorVisible(1, 1);
+CursorLabel(4,0,"START");
+CursorLabel(4,1,"END");
+Cursor(0, XLow()*0.7+XHigh()*0.3);
+
+query%:=Interact("Are you sure you want to delete all analysed data between cursors START and END?",1023,0,"No, I changed my mind","Yes, delete");
+
+View(res%); 'Point to the result view
+
+If query%=1 then return 1;
+Endif
+
+If query%=2 then
+    
+    startT:=Cursor(0);
+    endT:=Cursor(1);
+    
+    if chanE% and chanF% and chanG% and chanAmp% and chanH% and chanI% and chanM% and chanMM% > 0 then
+        delitem%:= MemDeleteTime(chanE%, 3, Cursor(0), Cursor(1));
+        MemDeleteTime(chanF%, 3, Cursor(0), Cursor(1));
+        MemDeleteTime(chanG%, 3, Cursor(0), Cursor(1));
+        MemDeleteTime(chanAmp%, 3, Cursor(0), Cursor(1));
+        MemDeleteTime(chanH%, 3, Cursor(0), Cursor(1));
+        MemDeleteTime(chanI%, 3, Cursor(0), Cursor(1));
+        MemDeleteTime(chanM%, 3, Cursor(0), Cursor(1));
+        MemDeleteTime(chanMM%, 3, Cursor(0), Cursor(1));
+    endif
+    
+    if chanL% and chanJ% and chanPI% and chanPeak% and chanTROU% > 0 then
+        MemDeleteTime(chanL%, 3, Cursor(0), Cursor(1));
+        MemDeleteTime(chanJ%, 3, Cursor(0), Cursor(1));
+        MemDeleteTime(chanPI%, 3, Cursor(0), Cursor(1));
+        MemDeleteTime(chanPeak%, 3, Cursor(0), Cursor(1));
+        MemDeleteTime(chanTROU%, 3, Cursor(0), Cursor(1));
+    endif
+    
+    if chanLL% and chanJJ% and chanPPI% and chanPPeak% and chanTTROU% > 0 then
+        MemDeleteTime(chanLL%, 3, Cursor(0), Cursor(1));
+        MemDeleteTime(chanJJ%, 3, Cursor(0), Cursor(1));
+        MemDeleteTime(chanPPI%, 3, Cursor(0), Cursor(1));
+        MemDeleteTime(chanPPeak%, 3, Cursor(0), Cursor(1));
+        MemDeleteTime(chanTTROU%, 3, Cursor(0), Cursor(1));
+    endif
+    
+    if txt%>0 then View(txt%); 'Point to the text view
+        Print ("\n\n%d respiratory cycles deleted between %.2f and %.2f seconds", delitem%, startT, endT);        
+    endif
+    
+endif
+
+
+fileok%:=1;
+Return 1;
+End;
+
+'generate XY plots to hold analysis averages
+
+var size;
+var startROI;
+var endROI;
+var NendROI;
+
+Func getXY%();
+
+View(res%); 'Point to the result view
+
+var COI%;
+var COIT$;
+var ok%;
+
+DlgCreate("Set parameters for bin averages");  'Start new dialog
+DlgAllow(1023);
+DlgChan(1,"Channel of interest",133120);
+DlgReal(2,"Bin size (s)|30",0,10000);
+DlgReal(3,"Start of ROI (s)",0,1000000);
+DlgReal(4,"End of ROI (s)",0,1000000);
+
+DlgButton(0,"Cancel");
+DlgButton(1,"OK");
+ok%:= DlgShow(COI%, size, startROI,endROI);
+
+If ok%=0 then
+	Message("Something went wrong; try again!");
+	return 1;
+endif;
+
+If COI%=0 or size=0 or startROI=0 or endROI=0 then
+    Message("Something went wrong; try again!");
+    return 1;
+endif;
+
+If ok%>0 and COI%<>0 and startROI<>0 and endROI<>0 then
+    
+    COIT$:=ChanTitle$(COI%);
+    
+    NendROI:=endROI-size; 
+    
+    View(res%); 'Point to the result view
+      
+    CursorDelete(-1);
+    CursorSet(0);
+    CursorNew();
+    Cursor(0, XLow()*0.7+XHigh()*0.3);
+    CursorVisible(0, 1);  'Show the cursor
+    
+    CursorActive(0,16, 0, Print$("C0+%d", size));   'Expression jumps every binsize
+    CursorActive(1,16, 0, Print$("C0+%d", size));   'Expression C1= bin size distance from C0
+    
+    MeasureToXY(16, 0, Print$("C0+%d", size), "0.0", 0, 1);
+    MeasureX(102, 1, "Cursor(0)", "0");
+    MeasureY(2, COI%, "Cursor(0)", "Cursor(1)");
+    MeasureChan(1,"Channel 1",0);
+    Process(startROI, NendROI, 1, 1);
+    
+    WindowVisible(1);
+    
+    If txt%>0 then View(txt%); 'Point to the text view
+        Print ("\n\nXYplot of %s is %.2f sec-binned averages from %.2f to %.2f seconds", COIT$, size, startROI, endROI);
+    Endif
+    
+Endif
+
+
+fileok%:=1;
+Return 1;
+End;
