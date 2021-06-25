@@ -1,0 +1,2 @@
+# Respiratory-electromygraphy
+This repository contains an algorithm for analysis of electromyograms recorded from respiratory muscles. The script was created to work with Spike2 8.16 x64 Unicode (CED, Cambridge, Apr 26 2019 14:14:41). The algorithm analyses several features of integrated waveforms from diaphragm, internal intercostal and external intercostal EMG. For help using the script please contact ana.abdala@bristol.ac.uk. You must acknowledge the author in all scientific outputs that arise from direct use of this script (modified or not).
